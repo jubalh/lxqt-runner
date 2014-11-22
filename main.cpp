@@ -26,19 +26,19 @@
  * END_COMMON_COPYRIGHT_HEADER */
 
 
-#include <LXQt/Application>
+#include <LXQt/SingleApplication>
 #include "dialog.h"
 
 
 int main(int argc, char *argv[])
 {
-    LxQt::Application a(argc, argv);
+    LxQt::SingleApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
 
     QWidget *hiddenPreviewParent = new QWidget(0, Qt::Tool);
     Dialog d(hiddenPreviewParent);
+    a.setActivationWindow(&d);
     //d.show();
 
     return a.exec();
-
 }
