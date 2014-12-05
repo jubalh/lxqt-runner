@@ -25,20 +25,71 @@
  *
  * END_COMMON_COPYRIGHT_HEADER */
 
-
+#include <signal.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <QDebug>
+#include <QFile>
 #include <LXQt/Application>
 #include "dialog.h"
 
+#define PID_PATH "/tmp/lxqt-runner.pid"
+
+Dialog *d;
+
+void catchSIGUSR1(int signal)
+{
+    if (d != NULL)
+    {
+        qDebug("SIGUSR1 signal received");
+        d->show();
+    }
+}
 
 int main(int argc, char *argv[])
 {
+    /* in case another instance is running sent it the SIGUSR1 signal
+     * to show it. then exit. */
+    QFile pidFile(PID_PATH);
+    if(pidFile.exists())
+    {
+        if (pidFile.open(QIODevice::ReadOnly))
+        {
+            int pidLR;
+            pidFile.seek(0);
+            QTextStream pidStream(&pidFile);
+
+            pidStream >> pidLR;
+            pidFile.close();
+
+            if (kill(pidLR, SIGUSR1) == 0)
+            {
+                qDebug() << "Sent SIGUSR1 signal to lxqt-runner instance with PID" << pidLR;
+                return 0;
+            }
+        }
+    }
+
     LxQt::Application a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
 
     QWidget *hiddenPreviewParent = new QWidget(0, Qt::Tool);
-    Dialog d(hiddenPreviewParent);
+    d = new Dialog(hiddenPreviewParent);
+
+    if (d != NULL)
+    {
+        // create a file containing PID; another instance can send the SIGUSR1 signal to this process
+        QFile pidFile(PID_PATH);
+        if (pidFile.open(QIODevice::WriteOnly))
+        {
+            QTextStream pidStream(&pidFile);
+            pidStream << getpid();
+            pidFile.close();
+        }
+        signal(SIGUSR1, catchSIGUSR1);
+    }
+
     //d.show();
 
     return a.exec();
-
 }
